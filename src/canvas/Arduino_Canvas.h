@@ -20,6 +20,11 @@ public:
   void draw16bitBeRGBBitmap(int16_t x, int16_t y, uint16_t *bitmap, int16_t w, int16_t h) override;
   void flush(void) override;
 
+  uint16_t getPixel(int16_t x, int16_t y);
+
+  void draw16bitRGBBitmapWith8BitAlpha(int16_t x, int16_t y,
+                                     uint16_t *bitmap, uint8_t *alpha, int16_t w, int16_t h);
+
 protected:
   uint16_t *_framebuffer;
   Arduino_G *_output;

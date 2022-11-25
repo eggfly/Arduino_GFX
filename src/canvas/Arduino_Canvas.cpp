@@ -47,6 +47,11 @@ void Arduino_Canvas::writePixelPreclipped(int16_t x, int16_t y, uint16_t color)
     _framebuffer[((int32_t)y * _width) + x] = color;
 }
 
+uint16_t Arduino_Canvas::getPixel(int16_t x, int16_t y)
+{
+    return _framebuffer[((int32_t)y * _width) + x];
+}
+
 void Arduino_Canvas::writeFastVLine(int16_t x, int16_t y,
                                     int16_t h, uint16_t color)
 {
@@ -134,6 +139,57 @@ void Arduino_Canvas::writeFillRectPreclipped(int16_t x, int16_t y,
         }
         row += _width;
     }
+}
+
+// rrrrrggggggbbbbb
+#define red_channel_5bit(color16bit) (color16bit >> 11)
+#define green_channel_6bit(color16bit) ((color16bit >> 5) & 0b111111)
+#define blue_channel_5bit(color16bit) (color16bit & 0b11111)
+
+static inline uint16_t MY_ALPHA_BLIT16_565(uint16_t fg, uint16_t bg, uint8_t alpha) {
+    // Alpha converted from [0..255] to [0..31]
+    // uint32_t ALPHA = alpha >> 3;
+    // #define RGB565(r,g,b) ((r & 0b11111000) << 8) | ((g & 0b11111100) << 3) | (b >> 3)
+    uint8_t bg_red = red_channel_5bit(bg);
+    uint8_t bg_green = green_channel_6bit(bg);
+    uint8_t bg_blue = blue_channel_5bit(bg);
+
+    uint8_t fg_red = red_channel_5bit(fg);
+    uint8_t fg_green = green_channel_6bit(fg);
+    uint8_t fg_blue = blue_channel_5bit(fg);
+
+    uint8_t red_channel_5bit = ((fg_red * alpha) + bg_red * (255 - alpha) ) / 255;
+    uint8_t green_channel_6bit = ((fg_green * alpha) + bg_green * (255 - alpha) ) / 255;
+    uint8_t blue_channel_5bit = ((fg_blue * alpha) + bg_blue * (255 - alpha) ) / 255;
+    return (red_channel_5bit << 11) | (green_channel_6bit << 5) | blue_channel_5bit;
+}
+
+static inline uint16_t ALPHA_BLIT16_565(uint32_t fg, uint32_t bg, uint8_t alpha) {
+    // Alpha converted from [0..255] to [0..31]
+    uint32_t ALPHA = alpha >> 3;
+    fg = (fg | fg << 16) & 0x07e0f81f;
+    bg = (bg | bg << 16) & 0x07e0f81f;
+    bg += (fg - bg) * ALPHA >> 5;
+    bg &= 0x07e0f81f;
+    return (uint16_t)(bg | bg >> 16);
+}
+
+void Arduino_Canvas::draw16bitRGBBitmapWith8BitAlpha(int16_t x, int16_t y,
+                                     uint16_t *bitmap, uint8_t *alpha, int16_t w, int16_t h)
+{
+  int32_t offset = 0, maskIdx = 0;
+  uint8_t byte = 0;
+  for (int16_t j = 0; j < h; j++, y++)
+  {
+    for (int16_t i = 0; i < w; i++)
+    {
+      byte = alpha[maskIdx++];
+      uint16_t bg = getPixel(x + i, y);
+      uint16_t result = ALPHA_BLIT16_565(bitmap[offset], bg, byte);
+      writePixel(x + i, y, result);
+      offset++;
+    }
+  }
 }
 
 void Arduino_Canvas::draw16bitRGBBitmap(int16_t x, int16_t y,
