@@ -618,4 +618,13 @@ uint16_t *Arduino_Canvas::getFramebuffer()
   return _framebuffer;
 }
 
+void Arduino_Canvas::setFramebuffer(uint16_t *framebuffer)
+{
+  if (_framebuffer)
+  {
+    free(_framebuffer);
+  }
+  _framebuffer = framebuffer;
+}
+
 #endif // !defined(LITTLE_FOOT_PRINT)

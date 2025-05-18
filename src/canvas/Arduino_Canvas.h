@@ -28,6 +28,7 @@ public:
   void flushQuad(bool force_flush = false);
 
   uint16_t *getFramebuffer();
+  void setFramebuffer(uint16_t *framebuffer);
 
 protected:
   uint16_t *_framebuffer = nullptr;
